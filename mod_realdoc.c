@@ -100,6 +100,12 @@ static apr_status_t realdoc_restore_docroot(void *data) {
 }
 
 static int realdoc_hook_handler(request_rec *r) {
+
+    if (!r->method || (r->method && (strcmp(r->method, "OPTIONS") == 0))) { //apr_strnatcmp?
+        // Don't bother checking any path when OPTIONS or no method specified
+        return DECLINED;
+    }
+
     core_server_config *core_conf;
     realdoc_config_struct *realdoc_conf;
     realdoc_request_save_struct *save;
@@ -147,7 +153,7 @@ static int realdoc_hook_handler(request_rec *r) {
 
     if (*last_saved_real_time < (current_request_time - realdoc_conf->realpath_every)) {
         if (NULL == realpath(core_conf->ap_document_root, last_saved_real_docroot)) {
-            AP_LOG_ERROR(r, "Error from realpath: %d. Original docroot: %s", errno, core_conf->ap_document_root);
+            if (errno != 2) AP_LOG_ERROR(r, "Error from realpath: %d. Original docroot: %s. Request: '%s'. Host: '%s'", errno, core_conf->ap_document_root, r->the_request, r->hostname);		// Log only if error is not "No such file or directory"
             return DECLINED;
         }
 
