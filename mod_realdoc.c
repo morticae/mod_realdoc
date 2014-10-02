@@ -153,7 +153,12 @@ static int realdoc_hook_handler(request_rec *r) {
 
     if (*last_saved_real_time < (current_request_time - realdoc_conf->realpath_every)) {
         if (NULL == realpath(core_conf->ap_document_root, last_saved_real_docroot)) {
-            if (errno != 2) AP_LOG_ERROR(r, "Error from realpath: %d. Original docroot: %s. Request: '%s'. Host: '%s'", errno, core_conf->ap_document_root, r->the_request, r->hostname);		// Log only if error is not "No such file or directory"
+            if (errno == ENOENT) {
+                // Don't log an error for "No such file or directory"
+                AP_LOG_DEBUG(r, "Error from realpath: %d. Original docroot: %s", errno, core_conf->ap_document_root);
+            } else {
+                AP_LOG_ERROR(r, "Error from realpath: %d. Original docroot: %s", errno, core_conf->ap_document_root);
+            }
             return DECLINED;
         }
 
@@ -167,7 +172,7 @@ static int realdoc_hook_handler(request_rec *r) {
 }
 
 void realdoc_register_hook(apr_pool_t *p) {
-    ap_hook_post_read_request(realdoc_hook_handler, NULL, NULL, APR_HOOK_REALLY_FIRST);
+    ap_hook_translate_name(realdoc_hook_handler, NULL, NULL, APR_HOOK_FIRST+1);
 }
 
 AP_MODULE_DECLARE_DATA module realdoc_module = {
